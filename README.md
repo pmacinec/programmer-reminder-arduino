@@ -1,2 +1,5 @@
-# programmer-reminder-arduino
-Programmer reminder based on Arduino UNO.
+# Programmer Reminder
+
+Programmer reminder is simple device developed on Arduino UNO board.
+
+
