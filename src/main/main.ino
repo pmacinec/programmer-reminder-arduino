@@ -1,6 +1,6 @@
+#include "U8glib.h"
 #include "settings.h"
 #include "pitches.h"
-#include "U8glib.h"
 
 U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_NONE);
 
@@ -10,42 +10,46 @@ int pomodoroModeButton = 4;
 int stopBuzzerButton = 3;
 int buzzer = 8;
 
+int screenWidth = 128;
+
+/**
+ * Print centered text.
+ * 
+ * @param text Text to be printed.
+ * @param positionY Height (y) position to print text at.
+ */
+void printCenteredText(String text, int positionY) {
+  u8g.setPrintPos((screenWidth - u8g.getStrPixelWidth(text.c_str())) / 2, positionY);
+  u8g.print(text);
+}
 
 /**
  * Print device intro page.
- * 
- * @param waitSecs Number of seconds to wait with intro page shown.
  */
-void printIntroPage(float waitSecs = 2.0) {
+void printIntroPage() {
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_profont15);
-    u8g.setPrintPos(30, 20);
-    u8g.print("Programmer");
-    u8g.setPrintPos(40, 40);
-    u8g.print("reminder");
+    printCenteredText("Programmer", 20);
+    printCenteredText("reminder", 40);
   } while(u8g.nextPage());
-  delay(waitSecs * 1000);
+  delay(introPageWaitSecs * 1000);
 }
 
 /**
  * Print greetings page.
- * 
- * @param waitSecs Number of seconds to wait with greetings page shown.
  */
-void printGreetingsPage(float waitSecs = 3.0) {
+void printGreetingsPage() {
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_profont15);
-    u8g.setPrintPos(0, 10);
-    u8g.print("Hello " + programmerName + "!");
+    printCenteredText(String("Hello " + programmerName + "!").c_str(), 10);
+
     u8g.setFont(u8g_font_profont12);
-    u8g.setPrintPos(0, 40);
-    u8g.print("Wish you productive");
-    u8g.setPrintPos(0, 55);
-    u8g.print("day at work!");
+    printCenteredText("Wish you productive", 40);
+    printCenteredText("day at work!", 55);
   } while (u8g.nextPage());
-  delay(waitSecs * 1000);
+  delay(greetingsPageWaitSecs * 1000);
 }
 
 /**
@@ -69,17 +73,14 @@ void printMenuPage(void) {
 
 /**
  * Print Pomodoro intro page.
- * 
- * @params waitSecs Number of seconds to wait with Pomodoro intro page shown.
  */
-void printPomodoroIntroPage(float waitSecs = 2.0) {
+void printPomodoroIntroPage() {
   u8g.firstPage();
   do {
-    u8g.setFont(u8g_font_profont15);
-    u8g.setPrintPos(35, 35);
-    u8g.print("Pomodoro");
+    u8g.setFont(u8g_font_profont22);
+    printCenteredText("Pomodoro", 35);
   } while (u8g.nextPage());
-  delay(waitSecs * 1000);
+  delay(pomodoroIntroPageWaitSecs * 1000);
 }
 
 /**
@@ -93,23 +94,29 @@ bool wasButtonPushed(int buttonPin) {
   return buttonState == HIGH;
 }
 
-
 /**
- * Print simple text.
+ * Alarm using piezo-buzzer.
  * 
- * @param text Simple string text to be printed.
- * @param waitSecs Number of seconds to wait on page with shown text.
+ * @param text Text to print during alarm.
  */
-void printSimpleText(String text, float waitSecs = 1.0) {
-  u8g.firstPage();
-  do {
-    u8g.setFont(u8g_font_profont15);
-    u8g.setPrintPos(35, 35);
-    u8g.print(text);
-  } while (u8g.nextPage());
-  delay(waitSecs * 1000);
-}
+void alarm(String text) {
+  while (true) {
+    u8g.firstPage();
+    do {
+      u8g.setFont(u8g_font_profont15);
+      printCenteredText(text, 35);
+      u8g.setFont(u8g_font_profont10);
+      printCenteredText("Stop with GREEN button", 45);
+    } while (u8g.nextPage());
 
+    if (wasButtonPushed(stopBuzzerButton)) {
+      return;
+    }
+    tone(buzzer, NOTE_E4, 0.5);
+    delay(150);
+    noTone(buzzer);
+  }
+}
 
 /**
  * Timer with printing counting on display.
@@ -118,30 +125,40 @@ void printSimpleText(String text, float waitSecs = 1.0) {
  * @param inerruptPin Pin that can interrupt timer.
  * @returns Whether timer ended normally (0) or by interruption (1);
  */
-int timer(float secs, int interruptPin) {
-  // zastavenie s podmienkou a return 0
+int timer(int secs, int interruptPin) {
   unsigned long startTime = millis();
+  unsigned long currentTime;
+
   int secondsPassed = 0;
 
-  while (secondsPassed < secs * 1000) {
-    secondsPassed = (millis() - startTime) * 1000;
+  int minutesRemaining = secs / 60;
+  int secondsRemaining = secs % 60;
+  String timeToPrint;
+
+  while (secondsPassed <= secs) {
+    timeToPrint = (minutesRemaining < 10) ? "0" + String(minutesRemaining) : String(minutesRemaining);
+    timeToPrint += ":";
+    timeToPrint += (secondsRemaining < 10) ? "0" + String(secondsRemaining) : String(secondsRemaining);
     u8g.firstPage();
     do {
-      u8g.setFont(u8g_font_profont15);
-      u8g.setPrintPos(35, 35);
-      u8g.print(secondsPassed);
+      u8g.setFont(u8g_font_profont22);
+      printCenteredText(timeToPrint, 40);
     } while (u8g.nextPage());
+  
+    currentTime = millis();
+    secondsPassed = (currentTime - startTime) / 1000;
+
+    minutesRemaining = (secs - secondsPassed) / 60;
+    secondsRemaining = (secs - secondsPassed) % 60;
 
     if (wasButtonPushed(interruptPin)) {
       return 1;
     }
+    delay(150);
   }
   return 0;
 }
 
-// TODO more settings about this
-// TODO params, but how to do that wit settings and multiple code files?
-// TODO beeping between cycles
 /**
  * Pomodoro timer functionality.
  */
@@ -153,18 +170,21 @@ void pomodoroTimer() {
       return;
     }
 
-    for (int pomodoroLoops = 0; pomodoroLoops <= 3; pomodoroLoops++) {
-       printSimpleText("Work!");
-       timerResponse = timer(pomodoroWorkDuration, pomodoroModeButton);
+    for (int pomodoroLoops = 0; pomodoroLoops <= pomodoroWorkLoops - 1; pomodoroLoops++) {
+      alarm("Work!");
+      timerResponse = timer(pomodoroWorkDuration, pomodoroModeButton);
+      if (timerResponse == 1) { return; }
 
-       if (pomodoroLoops < 3) {
-         printSimpleText("Short rest");
-         timerResponse = timer(5 * 60, pomodoroModeButton);
-       }
+      if (pomodoroLoops < 3) {
+        alarm("Short rest");
+        timerResponse = timer(pomodoroShortRestDuration, pomodoroModeButton);
+        if (timerResponse == 1) { return; }
+      }
     }
 
-    printSimpleText("Long rest");
-    timerResponse = timer(25 * 60, pomodoroModeButton);
+    alarm("Long rest");
+    timerResponse = timer(pomodoroLongRestDuration, pomodoroModeButton);
+    if (timerResponse == 1) { return; }
   }
 }
 
@@ -173,8 +193,8 @@ void setup() {
   pinMode(basicModeButton, INPUT);
   pinMode(pomodoroModeButton, INPUT);
  
-  printIntroPage(intro_page_wait_secs);
-  printGreetingsPage(greetings_page_wait_secs);
+  printIntroPage();
+  printGreetingsPage();
 }
 
 void loop() {
@@ -185,7 +205,7 @@ void loop() {
   }
 
   if (wasButtonPushed(pomodoroModeButton)) {
-    printPomodoroIntroPage(pomodoro_intro_page_wait_secs);
+    printPomodoroIntroPage();
     pomodoroTimer();
   }
 }

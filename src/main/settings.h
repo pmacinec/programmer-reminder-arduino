@@ -5,9 +5,13 @@
  */
 String programmerName = String("Peter");
 
-// TODO CONSTANTS case?
-float intro_page_wait_secs = 2;
-float greetings_page_wait_secs = 3;
-float pomodoro_intro_page_wait_secs = 2;
+// Pages settings
+float introPageWaitSecs = 2;
+float greetingsPageWaitSecs = 3;
+float pomodoroIntroPageWaitSecs = 2;
 
-float pomodoroWorkDuration = 25 * 60;  // 25 minutes * 60 seconds
+// Pomodoro settings
+int pomodoroWorkDuration = 25 * 60;  // 25 minutes * 60 seconds
+int pomodoroShortRestDuration = 5 * 60; // 5 minutes * 60 seconds
+int pomodoroLongRestDuration = 25 * 60; // 25 minutes * 60 seconds
+int pomodoroWorkLoops = 4;
