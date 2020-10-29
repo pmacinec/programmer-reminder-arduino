@@ -1,5 +1,6 @@
 #include "U8glib.h"
 #include "settings.h"
+#include "icons.h"
 #include "pitches.h"
 
 U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_NONE);
@@ -43,7 +44,7 @@ void printGreetingsPage() {
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_profont15);
-    printCenteredText(String("Hello " + programmerName + "!").c_str(), 10);
+    printCenteredText("Hello " + programmerName + "!", 20);
 
     u8g.setFont(u8g_font_profont12);
     printCenteredText("Wish you productive", 40);
@@ -188,6 +189,79 @@ void pomodoroTimer() {
   }
 }
 
+// TODO docstring
+float getTemperature() {
+  // TODO read from senzor
+  return 24.5;
+}
+
+// TODO docstring
+float getHumidity() {
+  // TODO read from senzor
+  return 40.5;
+}
+
+// TODO docstring
+float getIlluminance() {
+  // TODO read from senzor
+  return 10.5;
+}
+
+// TODO docstring
+void printEnvironmentMeasuredValues(float illuminance, float temperature, float humidity) {
+  u8g.firstPage();
+  do {
+    u8g.setFont(u8g_font_profont15);
+    u8g.drawBitmapP(0, 0, 3, 21, illuminanceBitmap);
+    u8g.setPrintPos(23, 15);
+    u8g.print(illuminance);
+
+    u8g.drawBitmapP(0, 22, 3, 21, temperatureBitmap);
+    u8g.setPrintPos(23, 36);
+    u8g.print(temperature);
+    
+    u8g.drawBitmapP(0, 43, 3, 21, humidityBitmap);
+    u8g.setPrintPos(23, 57);
+    u8g.print(humidity);
+  } while (u8g.nextPage());
+  delay(changeScreenDuration * 1000);
+}
+
+void printWorkedTime() {
+  u8g.firstPage();
+  do {
+    u8g.setFont(u8g_font_profont12);
+    printCenteredText("Pomodoro", 35);
+  } while (u8g.nextPage());
+  delay(changeScreenDuration * 1000);
+}
+
+
+/**
+ * Start basic work mode.
+ */
+void basicWorkMode() {
+  int workStart = millis();
+
+  float illuminance;
+  float temperature;
+  float humidity;
+
+  while (true) {
+    if (wasButtonPushed(basicModeButton)) {
+      // show worked time before
+      return;
+    }
+
+    illuminance = getIlluminance();
+    temperature = getTemperature();
+    humidity = getHumidity();
+
+    printEnvironmentMeasuredValues(illuminance, temperature, humidity);
+    printWorkedTime();
+  }
+}
+
 void setup() {
   // Initialize input/ouput modules pins
   pinMode(basicModeButton, INPUT);
@@ -201,7 +275,7 @@ void loop() {
   printMenuPage();
  
   if (wasButtonPushed(basicModeButton)) {
-    // TODO
+    basicWorkMode();
   }
 
   if (wasButtonPushed(pomodoroModeButton)) {
