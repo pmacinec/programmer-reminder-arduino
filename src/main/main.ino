@@ -37,7 +37,7 @@ void printIntroPage() {
     printCenteredText("Programmer", 20);
     printCenteredText("reminder", 40);
   } while(u8g.nextPage());
-  delay(4 * 1000);
+  delay(introScreenDuration * 1000);
 }
 
 /**
@@ -65,10 +65,23 @@ void printMenuPage(void) {
 void printPomodoroIntroPage() {
   u8g.firstPage();
   do {
-    u8g.setFont(u8g_font_profont22);
+    u8g.setFont(u8g_font_profont15);
     printCenteredText("Pomodoro", 35);
   } while (u8g.nextPage());
-  delay(3 * 1000);
+  delay(pomodoroIntroScreenDuration * 1000);
+}
+
+/**
+ * Print Pomodoro intro page.
+ */
+void printBasicWorkModeIntroPage() {
+  u8g.firstPage();
+  do {
+    u8g.setFont(u8g_font_profont12);  
+    printCenteredText("Wish you productive", 25); 
+    printCenteredText("day at work!", 50);
+  } while (u8g.nextPage());
+  delay(basicWorkModeIntroScreenDuration * 1000);
 }
 
 /**
@@ -107,6 +120,31 @@ void alarm(String text) {
 }
 
 /**
+ * Get time string from elapsed seconds.
+ * 
+ * @param secondsElapsed Elapsed seconds.
+ * @param hideHours Whether to hide hours or not (only MM:SS string will be returned).
+ * @returns Time string in HH:MM:SS format.
+ */
+String getTimeString(int secondsElapsed, bool hideHours = false) {
+  int hours = secondsElapsed / 3600;
+  int minutes = secondsElapsed / 60;
+  int seconds = secondsElapsed % 60;
+
+  String timeString = "";
+
+  if (!hideHours) {
+    timeString += (hours < 10) ? "0" + String(hours) : String(hours);
+    timeString += ":";
+  }
+  timeString += (minutes < 10) ? "0" + String(minutes) : String(minutes);
+  timeString += ":";
+  timeString += (seconds < 10) ? "0" + String(seconds) : String(seconds);
+  
+  return timeString;
+}
+
+/**
  * Timer with printing counting on display.
  * 
  * @param secs Number of seconds to count down.
@@ -115,7 +153,6 @@ void alarm(String text) {
  */
 int timer(int secs, int interruptPin) {
   unsigned long startTime = millis();
-  unsigned long currentTime;
 
   int secondsPassed = 0;
 
@@ -124,20 +161,14 @@ int timer(int secs, int interruptPin) {
   String timeToPrint;
 
   while (secondsPassed <= secs) {
-    timeToPrint = (minutesRemaining < 10) ? "0" + String(minutesRemaining) : String(minutesRemaining);
-    timeToPrint += ":";
-    timeToPrint += (secondsRemaining < 10) ? "0" + String(secondsRemaining) : String(secondsRemaining);
+    timeToPrint = getTimeString(secs - secondsPassed, true);
     u8g.firstPage();
     do {
-      u8g.setFont(u8g_font_profont22);
-      printCenteredText(timeToPrint, 40);
+      u8g.setFont(u8g_font_profont15);
+      printCenteredText(timeToPrint, 35);
     } while (u8g.nextPage());
   
-    currentTime = millis();
-    secondsPassed = (currentTime - startTime) / 1000;
-
-    minutesRemaining = (secs - secondsPassed) / 60;
-    secondsRemaining = (secs - secondsPassed) % 60;
+    secondsPassed = (millis() - startTime) / 1000;
 
     if (wasButtonPushed(interruptPin)) {
       return 1;
@@ -176,7 +207,6 @@ void pomodoroTimer() {
   }
 }
 
-
 /**
  * Print environment measured values.
  * 
@@ -188,19 +218,20 @@ void printEnvironmentMeasuredValues(float illuminance, float temperature, float 
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_profont15);
-    u8g.drawBitmapP(0, 0, 3, 21, illuminanceBitmap);
-    u8g.setPrintPos(25, 15);
+    u8g.drawBitmapP(0, 0, 2, 16, illuminanceBitmap);
+    u8g.setPrintPos(25, 12);
     u8g.print(String(illuminance) + " Lux");
 
-    u8g.drawBitmapP(0, 22, 3, 21, temperatureBitmap);
-    u8g.setPrintPos(25, 36);
-    u8g.print(String(temperature) + " C");
-    
-    u8g.drawBitmapP(0, 43, 3, 21, humidityBitmap);
-    u8g.setPrintPos(25, 57);
-    u8g.print(String(humidity) + " %");
+    u8g.drawBitmapP(0, 22, 2, 16, temperatureBitmap);
+    u8g.setPrintPos(25, 34);
+    u8g.print(String(temperature) + "  C");
+    u8g.drawCircle(68, 26, 2);
+
+    u8g.drawBitmapP(0, 43, 2, 16, humidityBitmap);
+    u8g.setPrintPos(25, 56);
+    u8g.print(String(humidity) + " rH%");
   } while (u8g.nextPage());
-  delay(5 * 1000);
+  delay(basicWorkModeScreensChange * 1000);
 }
 
 /**
@@ -209,24 +240,15 @@ void printEnvironmentMeasuredValues(float illuminance, float temperature, float 
  * @param workedSeconds Worked time in seconds.
  */
 void printWorkedTime(int workedSeconds) {
-  int hours = workedSeconds / 3600;
-  int minutes = workedSeconds / 60;
-  int seconds = workedSeconds % 60;
-
-  String timeToPrint;
-
-  timeToPrint = (hours < 10) ? "0" + String(hours) : String(hours);
-  timeToPrint += ":";
-  timeToPrint += (minutes < 10) ? "0" + String(minutes) : String(minutes);
-  timeToPrint += ":";
-  timeToPrint += (seconds < 10) ? "0" + String(seconds) : String(seconds);
+  String timeToPrint = getTimeString(workedSeconds);
 
   u8g.firstPage();
   do {
-    u8g.setFont(u8g_font_profont22);
+    u8g.setFont(u8g_font_profont15);
+    printCenteredText("Worked time", 20);
     printCenteredText(timeToPrint, 40);
   } while (u8g.nextPage());
-  delay(5 * 1000);
+  delay(basicWorkModeScreensChange * 1000);
 }
 
 /**
@@ -245,7 +267,7 @@ void basicWorkMode() {
       return;
     }
 
-    illuminance = lightMeter.readLightLevel(true);
+    illuminance = lightMeter.readLightLevel();
     temperature = bme.temp();
     humidity = bme.hum();
     printEnvironmentMeasuredValues(illuminance, temperature, humidity);
@@ -270,6 +292,7 @@ void loop() {
   printMenuPage();
  
   if (wasButtonPushed(stopBuzzerButton)) {
+    printBasicWorkModeIntroPage();
     basicWorkMode();
   }
 
