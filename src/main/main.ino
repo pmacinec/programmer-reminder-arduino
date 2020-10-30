@@ -1,12 +1,15 @@
-#include "U8glib.h"
+#include <BH1750.h>
+#include <BME280I2C.h>
+#include <U8glib.h>
 #include "settings.h"
 #include "icons.h"
-#include "pitches.h"
+
+BH1750 lightMeter;
+BME280I2C bme;
 
 U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_NONE);
 
-// TODO move into pins declaration
-int basicModeButton = 2;
+int basicModeButton = 5;
 int pomodoroModeButton = 4;
 int stopBuzzerButton = 3;
 int buzzer = 8;
@@ -20,7 +23,7 @@ int screenWidth = 128;
  * @param positionY Height (y) position to print text at.
  */
 void printCenteredText(String text, int positionY) {
-  u8g.setPrintPos((screenWidth - u8g.getStrPixelWidth(text.c_str())) / 2, positionY);
+  u8g.setPrintPos((128 - u8g.getStrPixelWidth(text.c_str())) / 2, positionY);
   u8g.print(text);
 }
 
@@ -34,23 +37,7 @@ void printIntroPage() {
     printCenteredText("Programmer", 20);
     printCenteredText("reminder", 40);
   } while(u8g.nextPage());
-  delay(introPageWaitSecs * 1000);
-}
-
-/**
- * Print greetings page.
- */
-void printGreetingsPage() {
-  u8g.firstPage();
-  do {
-    u8g.setFont(u8g_font_profont15);
-    printCenteredText("Hello " + programmerName + "!", 20);
-
-    u8g.setFont(u8g_font_profont12);
-    printCenteredText("Wish you productive", 40);
-    printCenteredText("day at work!", 55);
-  } while (u8g.nextPage());
-  delay(greetingsPageWaitSecs * 1000);
+  delay(4 * 1000);
 }
 
 /**
@@ -81,7 +68,7 @@ void printPomodoroIntroPage() {
     u8g.setFont(u8g_font_profont22);
     printCenteredText("Pomodoro", 35);
   } while (u8g.nextPage());
-  delay(pomodoroIntroPageWaitSecs * 1000);
+  delay(3 * 1000);
 }
 
 /**
@@ -189,53 +176,58 @@ void pomodoroTimer() {
   }
 }
 
-// TODO docstring
-float getTemperature() {
-  // TODO read from senzor
-  return 24.5;
-}
 
-// TODO docstring
-float getHumidity() {
-  // TODO read from senzor
-  return 40.5;
-}
-
-// TODO docstring
-float getIlluminance() {
-  // TODO read from senzor
-  return 10.5;
-}
-
-// TODO docstring
+/**
+ * Print environment measured values.
+ * 
+ * @param illuminance Illuminance in Lux.
+ * @param temperature Temperature in degree Celsius.
+ * @param humidity Relative humidity percentage.
+ */
 void printEnvironmentMeasuredValues(float illuminance, float temperature, float humidity) {
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_profont15);
     u8g.drawBitmapP(0, 0, 3, 21, illuminanceBitmap);
-    u8g.setPrintPos(23, 15);
-    u8g.print(illuminance);
+    u8g.setPrintPos(25, 15);
+    u8g.print(String(illuminance) + " Lux");
 
     u8g.drawBitmapP(0, 22, 3, 21, temperatureBitmap);
-    u8g.setPrintPos(23, 36);
-    u8g.print(temperature);
+    u8g.setPrintPos(25, 36);
+    u8g.print(String(temperature) + " C");
     
     u8g.drawBitmapP(0, 43, 3, 21, humidityBitmap);
-    u8g.setPrintPos(23, 57);
-    u8g.print(humidity);
+    u8g.setPrintPos(25, 57);
+    u8g.print(String(humidity) + " %");
   } while (u8g.nextPage());
-  delay(changeScreenDuration * 1000);
+  delay(5 * 1000);
 }
 
-void printWorkedTime() {
+/**
+ * Print worked time.
+ * 
+ * @param workedSeconds Worked time in seconds.
+ */
+void printWorkedTime(int workedSeconds) {
+  int hours = workedSeconds / 3600;
+  int minutes = workedSeconds / 60;
+  int seconds = workedSeconds % 60;
+
+  String timeToPrint;
+
+  timeToPrint = (hours < 10) ? "0" + String(hours) : String(hours);
+  timeToPrint += ":";
+  timeToPrint += (minutes < 10) ? "0" + String(minutes) : String(minutes);
+  timeToPrint += ":";
+  timeToPrint += (seconds < 10) ? "0" + String(seconds) : String(seconds);
+
   u8g.firstPage();
   do {
-    u8g.setFont(u8g_font_profont12);
-    printCenteredText("Pomodoro", 35);
+    u8g.setFont(u8g_font_profont22);
+    printCenteredText(timeToPrint, 40);
   } while (u8g.nextPage());
-  delay(changeScreenDuration * 1000);
+  delay(5 * 1000);
 }
-
 
 /**
  * Start basic work mode.
@@ -249,16 +241,16 @@ void basicWorkMode() {
 
   while (true) {
     if (wasButtonPushed(basicModeButton)) {
-      // show worked time before
+      printWorkedTime((millis() - workStart) / 1000);
       return;
     }
 
-    illuminance = getIlluminance();
-    temperature = getTemperature();
-    humidity = getHumidity();
-
+    illuminance = lightMeter.readLightLevel(true);
+    temperature = bme.temp();
+    humidity = bme.hum();
     printEnvironmentMeasuredValues(illuminance, temperature, humidity);
-    printWorkedTime();
+
+    printWorkedTime((millis() - workStart) / 1000);
   }
 }
 
@@ -266,15 +258,18 @@ void setup() {
   // Initialize input/ouput modules pins
   pinMode(basicModeButton, INPUT);
   pinMode(pomodoroModeButton, INPUT);
- 
+
+  // Initialize the BME 280 sensor
+  bme.begin();
+  lightMeter.begin();
+
   printIntroPage();
-  printGreetingsPage();
 }
 
 void loop() {
   printMenuPage();
  
-  if (wasButtonPushed(basicModeButton)) {
+  if (wasButtonPushed(stopBuzzerButton)) {
     basicWorkMode();
   }
 
