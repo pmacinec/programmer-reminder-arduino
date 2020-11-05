@@ -14,10 +14,10 @@ int basicWorkModeScreensChange = 10;
 
 
 // Basic work mode
-float illuminanceLowerBoundary = 500.0;
-float temperatureLowerBoundary = 20.0;
-float temperatureUpperBoundary = 25.0;
-float humidityLowerBoundary = 40.0;
+float illuminanceLowerBoundary = 400.0;
+float temperatureLowerBoundary = 21.0;
+float temperatureUpperBoundary = 26.0;
+float humidityLowerBoundary = 35.0;
 float humidityUpperBoundary = 60.0;
 
 // Pomodoro settings
