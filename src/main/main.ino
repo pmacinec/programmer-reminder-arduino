@@ -9,9 +9,10 @@ BME280I2C bme;
 
 U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_NONE);
 
-int basicModeButton = 5;
-int pomodoroModeButton = 4;
+int basicModeButton = 2;
 int stopBuzzerButton = 3;
+int pomodoroModeButton = 4;
+
 int buzzer = 8;
 
 int screenWidth = 128;
@@ -23,7 +24,7 @@ int screenWidth = 128;
  * @param positionY Height (y) position to print text at.
  */
 void printCenteredText(String text, int positionY) {
-  u8g.setPrintPos((128 - u8g.getStrPixelWidth(text.c_str())) / 2, positionY);
+  u8g.setPrintPos((screenWidth - u8g.getStrPixelWidth(text.c_str())) / 2, positionY);
   u8g.print(text);
 }
 
@@ -104,8 +105,8 @@ void alarm(String text) {
   while (true) {
     u8g.firstPage();
     do {
-      u8g.setFont(u8g_font_profont15);
-      printCenteredText(text, 35);
+      u8g.setFont(u8g_font_profont12);
+      printCenteredText(text, 30);
       u8g.setFont(u8g_font_profont10);
       printCenteredText("Stop with GREEN button", 45);
     } while (u8g.nextPage());
@@ -114,7 +115,7 @@ void alarm(String text) {
       return;
     }
     tone(buzzer, NOTE_E4, 0.5);
-    delay(150);
+    delay(100);
     noTone(buzzer);
   }
 }
@@ -173,7 +174,7 @@ int timer(int secs, int interruptPin) {
     if (wasButtonPushed(interruptPin)) {
       return 1;
     }
-    delay(150);
+    delay(100);
   }
   return 0;
 }
@@ -213,8 +214,10 @@ void pomodoroTimer() {
  * @param illuminance Illuminance in Lux.
  * @param temperature Temperature in degree Celsius.
  * @param humidity Relative humidity percentage.
+ * @param interruptPin Pin that can interrupt basic working mode.
+ * @returns Whether screen print ended normally (0) or by interruption (1);
  */
-void printEnvironmentMeasuredValues(float illuminance, float temperature, float humidity) {
+int printEnvironmentMeasuredValues(float illuminance, float temperature, float humidity, int interruptPin) {
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_profont15);
@@ -235,20 +238,100 @@ void printEnvironmentMeasuredValues(float illuminance, float temperature, float 
 }
 
 /**
- * Print worked time.
+ * Check environment measured values and play alarm if needed.
  * 
- * @param workedSeconds Worked time in seconds.
+ * @param illuminance Illuminance in Lux.
+ * @param temperature Temperature in degree Celsius.
+ * @param humidity Relative humidity percentage.
  */
-void printWorkedTime(int workedSeconds) {
-  String timeToPrint = getTimeString(workedSeconds);
+void checkEnvironmentMeasuredValues(float illuminance, float temperature, float humidity) {
+  if (illuminance < illuminanceLowerBoundary) {
+    alarm("Illuminance too low!");
+  }
 
+  if (temperature <= temperatureLowerBoundary) {
+    alarm("Temperature too low!");
+  }
+
+  if (temperature >= temperatureUpperBoundary) {
+    alarm("Temperature too high!");
+  }
+
+  if (humidity <= humidityLowerBoundary) {
+    alarm("Humidity too low!");
+  }
+
+  if (humidity >= humidityUpperBoundary) {
+    alarm("Humidity too high!");
+  }
+}
+
+/**
+ * Print ideal environment values.
+ * 
+ * @param interruptPin Pin that can interrupt basic working mode.
+ * @returns Whether screen print ended normally (0) or by interruption (1);
+ */
+int printEnvironmentIdealValues(int interruptPin) {
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_profont15);
-    printCenteredText("Worked time", 20);
-    printCenteredText(timeToPrint, 40);
+    u8g.drawBitmapP(0, 0, 2, 16, illuminanceBitmap);
+    u8g.setPrintPos(23, 12);
+    u8g.print(">" + String(illuminanceLowerBoundary) + " Lux");
+
+    u8g.drawBitmapP(0, 22, 2, 16, temperatureBitmap);
+    u8g.setPrintPos(23, 34);
+    u8g.print(String(temperatureLowerBoundary) + "-" + String(temperatureUpperBoundary) + "  C");
+    u8g.drawCircle(110, 26, 2);
+
+    u8g.drawBitmapP(0, 43, 2, 16, humidityBitmap);
+    u8g.setPrintPos(23, 56);
+    u8g.print(String(humidityLowerBoundary) + "-" + String(humidityUpperBoundary) + " rH%");
   } while (u8g.nextPage());
   delay(basicWorkModeScreensChange * 1000);
+}
+
+/**
+ * Print worked time.
+ * 
+ * @param workedSeconds Worked time in seconds.
+ * @param interruptPin Pin that can interrupt basic working mode.
+ * @param count Whether to count worked time or remain static.
+ * @returns Whether screen print ended normally (0) or by interruption (1);
+ */
+int printWorkedTime(int workedSeconds, int interruptPin, bool count = true) {
+  unsigned long startTime = millis();
+
+  int secondsPassed = 0;
+
+  String timeToPrint;
+  String workedTimeMessage = count ? "Worked time" : "Worked time today";
+
+  while (secondsPassed <= basicWorkModeScreensChange) {
+    timeToPrint = getTimeString(workedSeconds + secondsPassed);
+    u8g.firstPage();
+    do {
+      u8g.setFont(u8g_font_profont15);
+      
+      printCenteredText("Worked time", 20);
+      printCenteredText(timeToPrint, 40);
+    } while (u8g.nextPage());
+  
+    secondsPassed = (millis() - startTime) / 1000;
+
+    if (wasButtonPushed(interruptPin)) {
+      return 1;
+    }
+
+    if (!count) {
+      delay(basicWorkModeScreensChange);
+      break;
+    }
+    delay(100);
+  }
+
+  return 0;
 }
 
 /**
@@ -257,22 +340,34 @@ void printWorkedTime(int workedSeconds) {
 void basicWorkMode() {
   int workStart = millis();
 
+  int returnState = 0;
+
   float illuminance;
   float temperature;
   float humidity;
 
   while (true) {
-    if (wasButtonPushed(basicModeButton)) {
-      printWorkedTime((millis() - workStart) / 1000);
-      return;
-    }
-
     illuminance = lightMeter.readLightLevel();
     temperature = bme.temp();
     humidity = bme.hum();
-    printEnvironmentMeasuredValues(illuminance, temperature, humidity);
+    returnState = printEnvironmentMeasuredValues(illuminance, temperature, humidity, basicModeButton);
+    if (returnState == 1) {
+      printWorkedTime((millis() - workStart) / 1000, basicModeButton);
+      return;
+    }
+    checkEnvironmentMeasuredValues(illuminance, temperature, humidity);
 
-    printWorkedTime((millis() - workStart) / 1000);
+    returnState = printEnvironmentIdealValues(basicModeButton);
+    if (returnState == 1) {
+      printWorkedTime((millis() - workStart) / 1000, basicModeButton);
+      return;
+    }
+
+    returnState = printWorkedTime((millis() - workStart) / 1000, basicModeButton);
+    if (returnState == 1) {
+      printWorkedTime((millis() - workStart) / 1000, basicModeButton);
+      return;
+    }
   }
 }
 
@@ -283,7 +378,7 @@ void setup() {
 
   // Initialize the BME 280 sensor
   bme.begin();
-  lightMeter.begin();
+  lightMeter.begin(BH1750::ONE_TIME_HIGH_RES_MODE);
 
   printIntroPage();
 }
@@ -291,7 +386,7 @@ void setup() {
 void loop() {
   printMenuPage();
  
-  if (wasButtonPushed(stopBuzzerButton)) {
+  if (wasButtonPushed(basicModeButton)) {
     printBasicWorkModeIntroPage();
     basicWorkMode();
   }
