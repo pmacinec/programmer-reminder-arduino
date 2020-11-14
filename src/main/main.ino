@@ -3,15 +3,16 @@
 #include <U8glib.h>
 #include "settings.h"
 #include "icons.h"
+#include "song.h"
 
 BH1750 lightMeter;
 BME280I2C bme;
 
 U8GLIB_SH1106_128X64 u8g(U8G_I2C_OPT_NONE);
 
-int basicModeButton = 2;
-int stopBuzzerButton = 3;
-int pomodoroModeButton = 4;
+int basicModeButton = 5;
+int pomodoroModeButton = 6;
+int stopBuzzerButton = 7;
 
 int buzzer = 8;
 
@@ -54,7 +55,7 @@ void printMenuPage(void) {
     u8g.print("working mode:");
     u8g.setPrintPos(0, 40);
     u8g.setFont(u8g_font_profont10);
-    u8g.print("Basic (YELLOW BUTTON)");
+    u8g.print("Basic (WHITE BUTTON)");
     u8g.setPrintPos(0, 50);
     u8g.print("Pomodoro (BLUE BUTTON)");
   } while (u8g.nextPage());
@@ -353,6 +354,7 @@ void basicWorkMode() {
     returnState = printEnvironmentMeasuredValues(illuminance, temperature, humidity, basicModeButton);
     if (returnState == 1) {
       printWorkedTime((millis() - workStart) / 1000, basicModeButton);
+      playSong();
       return;
     }
     checkEnvironmentMeasuredValues(illuminance, temperature, humidity);
@@ -360,14 +362,56 @@ void basicWorkMode() {
     returnState = printEnvironmentIdealValues(basicModeButton);
     if (returnState == 1) {
       printWorkedTime((millis() - workStart) / 1000, basicModeButton);
+      playSong();
       return;
     }
 
     returnState = printWorkedTime((millis() - workStart) / 1000, basicModeButton);
     if (returnState == 1) {
       printWorkedTime((millis() - workStart) / 1000, basicModeButton);
+      playSong();
       return;
     }
+  }
+}
+
+/**
+ * Play Ode to Joy song.
+ * 
+ * Code taken (and modified) from https://github.com/robsoncouto/arduino-songs.
+ */
+void playSong() {
+  // Sizeof gives the number of bytes, each int value is composed of two bytes (16 bits),
+  // there are two values per note (pitch and duration), so for each note there are four bytes
+  int notes = sizeof(melody) / sizeof(melody[0]) / 2;
+
+  // This calculates the duration of a whole note in ms (60 is tempo)
+  int wholenote = (60000 * 2) / 60;
+
+  int divider = 0, noteDuration = 0;
+
+  // Remember, the array is twice the number of notes (notes + durations)
+  for (int thisNote = 0; thisNote < notes * 2; thisNote = thisNote + 2) {
+
+    // Calculates the duration of each note
+    divider = melody[thisNote + 1];
+    if (divider > 0) {
+      // Regular note, just proceed
+      noteDuration = (wholenote) / divider;
+    } else if (divider < 0) {
+      // Dotted notes are represented with negative durations
+      noteDuration = (wholenote) / abs(divider);
+      noteDuration *= 1.5; // Increases the duration in half for dotted notes
+    }
+
+    // We only play the note for 90% of the duration, leaving 10% as a pause
+    tone(buzzer, melody[thisNote], noteDuration * 0.9);
+
+    // Wait for the specief duration before playing the next note.
+    delay(noteDuration);
+    
+    // Stop the waveform generation before the next note.
+    noTone(buzzer);
   }
 }
 
@@ -375,6 +419,7 @@ void setup() {
   // Initialize input/ouput modules pins
   pinMode(basicModeButton, INPUT);
   pinMode(pomodoroModeButton, INPUT);
+  pinMode(stopBuzzerButton, INPUT);
 
   // Initialize the BME 280 sensor
   bme.begin();

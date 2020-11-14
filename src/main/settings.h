@@ -4,8 +4,6 @@
  * Change all values below according to your preferences.
  */
 
-#define NOTE_E4 330
-
 // Screens duration (in seconds)
 int introScreenDuration = 5;
 int pomodoroIntroScreenDuration = 5;
