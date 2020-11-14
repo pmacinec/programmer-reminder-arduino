@@ -103,20 +103,21 @@ bool wasButtonPushed(int buttonPin) {
  * @param text Text to print during alarm.
  */
 void alarm(String text) {
-  while (true) {
-    u8g.firstPage();
-    do {
-      u8g.setFont(u8g_font_profont12);
-      printCenteredText(text, 30);
-      u8g.setFont(u8g_font_profont10);
-      printCenteredText("Stop with GREEN button", 45);
-    } while (u8g.nextPage());
+  u8g.firstPage();
+  do {
+    u8g.setFont(u8g_font_profont12);
+    printCenteredText(text, 30);
+    u8g.setFont(u8g_font_profont10);
+    printCenteredText("Stop with GREEN button", 45);
+  } while (u8g.nextPage());
 
+  while (true) {
     if (wasButtonPushed(stopBuzzerButton)) return;
 
     tone(buzzer, NOTE_E4, 0.5);
     delay(100);
     noTone(buzzer);
+    delay(100);
   }
 }
 
