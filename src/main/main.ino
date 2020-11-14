@@ -175,7 +175,6 @@ int timer(int secs, int interruptPin) {
     if (wasButtonPushed(interruptPin)) {
       return 1;
     }
-    delay(100);
   }
   return 0;
 }
@@ -210,15 +209,57 @@ void pomodoroTimer() {
 }
 
 /**
+ * Print worked time.
+ * 
+ * @param workedSeconds Worked time in seconds.
+ * @param count Whether to count worked time or remain static.
+ * @returns Whether screen print ended normally (0) or by interruption (1);
+ */
+int printWorkedTime(int workedSeconds, bool count = true) {
+  unsigned long startTime = millis();
+
+  int secondsPassed = 0;
+
+  String timeToPrint;
+  String workedTimeMessage = count ? "Worked time" : "Worked time today";
+
+  while (secondsPassed <= basicWorkModeScreensChange) {
+    timeToPrint = getTimeString(workedSeconds + secondsPassed);
+    u8g.firstPage();
+    do {
+      u8g.setFont(u8g_font_profont15);
+      
+      printCenteredText(workedTimeMessage, 20);
+      printCenteredText(timeToPrint, 40);
+    } while (u8g.nextPage());
+ 
+    if (!count) {
+      delay(basicWorkModeScreensChange * 1000);
+      return 0;
+    }
+    else {
+      secondsPassed = (millis() - startTime) / 1000;
+    }
+
+    if (wasButtonPushed(basicModeButton)) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+/**
  * Print environment measured values.
  * 
  * @param illuminance Illuminance in Lux.
  * @param temperature Temperature in degree Celsius.
  * @param humidity Relative humidity percentage.
- * @param interruptPin Pin that can interrupt basic working mode.
  * @returns Whether screen print ended normally (0) or by interruption (1);
  */
-int printEnvironmentMeasuredValues(float illuminance, float temperature, float humidity, int interruptPin) {
+int printEnvironmentMeasuredValues(float illuminance, float temperature, float humidity) {
+  unsigned long startTime = millis();
+
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_profont15);
@@ -235,7 +276,12 @@ int printEnvironmentMeasuredValues(float illuminance, float temperature, float h
     u8g.setPrintPos(25, 56);
     u8g.print(String(humidity) + " rH%");
   } while (u8g.nextPage());
-  delay(basicWorkModeScreensChange * 1000);
+
+  while ((millis() - startTime) / 1000 <= basicWorkModeScreensChange) {
+    if (wasButtonPushed(basicModeButton)) {
+      return 1;
+    }
+  }
 }
 
 /**
@@ -270,10 +316,11 @@ void checkEnvironmentMeasuredValues(float illuminance, float temperature, float 
 /**
  * Print ideal environment values.
  * 
- * @param interruptPin Pin that can interrupt basic working mode.
  * @returns Whether screen print ended normally (0) or by interruption (1);
  */
-int printEnvironmentIdealValues(int interruptPin) {
+int printEnvironmentIdealValues() {
+  unsigned long startTime = millis();
+
   u8g.firstPage();
   do {
     u8g.setFont(u8g_font_profont15);
@@ -290,87 +337,10 @@ int printEnvironmentIdealValues(int interruptPin) {
     u8g.setPrintPos(23, 56);
     u8g.print(String(humidityLowerBoundary) + "-" + String(humidityUpperBoundary) + " rH%");
   } while (u8g.nextPage());
-  delay(basicWorkModeScreensChange * 1000);
-}
 
-/**
- * Print worked time.
- * 
- * @param workedSeconds Worked time in seconds.
- * @param interruptPin Pin that can interrupt basic working mode.
- * @param count Whether to count worked time or remain static.
- * @returns Whether screen print ended normally (0) or by interruption (1);
- */
-int printWorkedTime(int workedSeconds, int interruptPin, bool count = true) {
-  unsigned long startTime = millis();
-
-  int secondsPassed = 0;
-
-  String timeToPrint;
-  String workedTimeMessage = count ? "Worked time" : "Worked time today";
-
-  while (secondsPassed <= basicWorkModeScreensChange) {
-    timeToPrint = getTimeString(workedSeconds + secondsPassed);
-    u8g.firstPage();
-    do {
-      u8g.setFont(u8g_font_profont15);
-      
-      printCenteredText("Worked time", 20);
-      printCenteredText(timeToPrint, 40);
-    } while (u8g.nextPage());
-  
-    secondsPassed = (millis() - startTime) / 1000;
-
-    if (wasButtonPushed(interruptPin)) {
+  while ((millis() - startTime) / 1000 <= basicWorkModeScreensChange) {
+    if (wasButtonPushed(basicModeButton)) {
       return 1;
-    }
-
-    if (!count) {
-      delay(basicWorkModeScreensChange);
-      break;
-    }
-    delay(100);
-  }
-
-  return 0;
-}
-
-/**
- * Start basic work mode.
- */
-void basicWorkMode() {
-  int workStart = millis();
-
-  int returnState = 0;
-
-  float illuminance;
-  float temperature;
-  float humidity;
-
-  while (true) {
-    illuminance = lightMeter.readLightLevel();
-    temperature = bme.temp();
-    humidity = bme.hum();
-    returnState = printEnvironmentMeasuredValues(illuminance, temperature, humidity, basicModeButton);
-    if (returnState == 1) {
-      printWorkedTime((millis() - workStart) / 1000, basicModeButton);
-      playSong();
-      return;
-    }
-    checkEnvironmentMeasuredValues(illuminance, temperature, humidity);
-
-    returnState = printEnvironmentIdealValues(basicModeButton);
-    if (returnState == 1) {
-      printWorkedTime((millis() - workStart) / 1000, basicModeButton);
-      playSong();
-      return;
-    }
-
-    returnState = printWorkedTime((millis() - workStart) / 1000, basicModeButton);
-    if (returnState == 1) {
-      printWorkedTime((millis() - workStart) / 1000, basicModeButton);
-      playSong();
-      return;
     }
   }
 }
@@ -392,6 +362,9 @@ void playSong() {
 
   // Remember, the array is twice the number of notes (notes + durations)
   for (int thisNote = 0; thisNote < notes * 2; thisNote = thisNote + 2) {
+    if (wasButtonPushed(basicModeButton)) {
+      return;
+    }
 
     // Calculates the duration of each note
     divider = melody[thisNote + 1];
@@ -412,6 +385,54 @@ void playSong() {
     
     // Stop the waveform generation before the next note.
     noTone(buzzer);
+  }
+}
+
+/**
+ * Perform post-actions of basic working mode is finished.
+ * 
+ * @param workedSeconds Worked time in seconds.
+ */
+void finalizeBasicWorkingMode(int workedSeconds) {
+  printWorkedTime(workedSeconds, false);
+  playSong();
+}
+
+/**
+ * Start basic work mode.
+ */
+void basicWorkMode() {
+  int workStart = millis();
+
+  int returnState = 0;
+
+  float illuminance;
+  float temperature;
+  float humidity;
+
+  while (true) {
+    illuminance = lightMeter.readLightLevel();
+    temperature = bme.temp();
+    humidity = bme.hum();
+    returnState = printEnvironmentMeasuredValues(illuminance, temperature, humidity);
+    if (returnState == 1) {
+      finalizeBasicWorkingMode(millis() - workStart);
+      return;
+    }
+
+    checkEnvironmentMeasuredValues(illuminance, temperature, humidity);
+
+    returnState = printEnvironmentIdealValues();
+    if (returnState == 1) {
+      finalizeBasicWorkingMode(millis() - workStart);
+      return;
+    }
+
+    returnState = printWorkedTime((millis() - workStart) / 1000);
+    if (returnState == 1) {
+      finalizeBasicWorkingMode(millis() - workStart);
+      return;
+    }
   }
 }
 
