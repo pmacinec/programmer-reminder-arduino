@@ -230,7 +230,6 @@ int printWorkedTime(int workedSeconds, bool count = true) {
     } while (u8g.nextPage());
  
     if (!count) {
-      delay(basicWorkModeScreensChange * 1000);
       return 0;
     }
     else {
@@ -274,6 +273,8 @@ int printEnvironmentMeasuredValues(float illuminance, float temperature, float h
   while ((millis() - startTime) / 1000 <= basicWorkModeScreensChange) {
     if (wasButtonPushed(basicModeButton)) return 1;
   }
+
+  return 0;
 }
 
 /**
@@ -333,6 +334,8 @@ int printEnvironmentIdealValues() {
   while ((millis() - startTime) / 1000 <= basicWorkModeScreensChange) {
     if (wasButtonPushed(basicModeButton)) return 1;
   }
+
+  return 0;
 }
 
 /**
@@ -383,6 +386,7 @@ void playSong() {
  */
 void finalizeBasicWorkingMode(int workedSeconds) {
   printWorkedTime(workedSeconds, false);
+  delay(100);
   playSong();
 }
 
@@ -420,24 +424,24 @@ void basicWorkMode() {
 
     if ((millis() - eyesRestTimeTimer) / 1000 + basicWorkModeScreensChange * 3 / 2 >= eyesRestTime) {
       alarm("Eyes rest!");
-      delay(eyesRestDelay * 1000);
+      timer(eyesRestDelay, basicModeButton);
       eyesRestTimeTimer = millis();
     }
 
     if ((millis() - waterDrinkingRestTimeTimer) / 1000 + basicWorkModeScreensChange * 3 / 2 >= waterDrinkingRestTime) {
-      alarm("Eyes rest!");
-      delay(waterDrinkingRestDelay * 1000);
+      alarm("Drink water!");
+      timer(waterDrinkingRestDelay, basicModeButton);
       waterDrinkingRestTimeTimer = millis();
     }
 
     if ((millis() - exerciseRestTimeTimer) / 1000 + basicWorkModeScreensChange * 3 / 2 >= exerciseRestTime) {
-      alarm("Eyes rest!");
-      delay(exerciseRestDelay * 1000);
+      alarm("Exercise!");
+      timer(exerciseRestDelay, basicModeButton);
       exerciseRestTimeTimer = millis();
     }
   }
 
-  finalizeBasicWorkingMode(millis() - workStart);
+  finalizeBasicWorkingMode((millis() - workStart) / 1000);
 }
 
 void setup() {
