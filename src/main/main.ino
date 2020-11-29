@@ -325,29 +325,19 @@ int printEnvironmentMeasuredValues(float illuminance, float temperature, float h
 void checkEnvironmentMeasuredValues(float illuminance, float temperature, float humidity)
 {
   if (illuminance < illuminanceLowerBoundary)
-  {
     alarm("Illuminance too low!");
-  }
 
   if (temperature <= temperatureLowerBoundary)
-  {
     alarm("Temperature too low!");
-  }
 
   if (temperature >= temperatureUpperBoundary)
-  {
     alarm("Temperature too high!");
-  }
 
   if (humidity <= humidityLowerBoundary)
-  {
     alarm("Humidity too low!");
-  }
 
   if (humidity >= humidityUpperBoundary)
-  {
     alarm("Humidity too high!");
-  }
 }
 
 /**
@@ -450,14 +440,13 @@ void finalizeBasicWorkingMode(int workedSeconds)
  */
 void basicWorkMode()
 {
-  int workStart = millis();
+  unsigned long workStart = millis();
 
   int returnState = 0;
 
-  float restsTimer = 0;
-  int eyesRestTimeTimer = millis();
-  int waterDrinkingRestTimeTimer = eyesRestTimeTimer;
-  int exerciseRestTimeTimer = eyesRestTimeTimer;
+  unsigned long eyesRestTimeTimer = millis();
+  unsigned long waterDrinkingRestTimeTimer = eyesRestTimeTimer;
+  unsigned long exerciseRestTimeTimer = eyesRestTimeTimer;
 
   float illuminance;
   float temperature;
