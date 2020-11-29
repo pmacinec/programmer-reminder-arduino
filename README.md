@@ -16,5 +16,4 @@ Programmer reminder is simple device developed on Arduino UNO board.
 
 ## Breadboard schema
 
-<img src="diagrams/programmer_reminder_bb.jpg" alt="Breadboard schema">
-
+<img src="diagrams/programmer_reminder_bb.jpg" width="500px" alt="Breadboard schema">
