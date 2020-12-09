@@ -284,7 +284,7 @@ int printWorkedTime(int workedSeconds, bool count = true)
  * @param humidity Relative humidity percentage.
  * @returns Whether screen print ended normally (0) or by interruption (1);
  */
-int printEnvironmentMeasuredValues(float illuminance, float temperature, float humidity)
+int printEnvironmentMeasuredValues(int illuminance, int temperature, int humidity)
 {
   unsigned long startTime = millis();
 
@@ -299,7 +299,7 @@ int printEnvironmentMeasuredValues(float illuminance, float temperature, float h
     u8g.drawBitmapP(0, 22, 2, 16, temperatureBitmap);
     u8g.setPrintPos(25, 34);
     u8g.print(String(temperature) + "  C");
-    u8g.drawCircle(68, 26, 2);
+    u8g.drawCircle(46, 26, 2);
 
     u8g.drawBitmapP(0, 43, 2, 16, humidityBitmap);
     u8g.setPrintPos(25, 56);
@@ -322,7 +322,7 @@ int printEnvironmentMeasuredValues(float illuminance, float temperature, float h
  * @param temperature Temperature in degree Celsius.
  * @param humidity Relative humidity percentage.
  */
-void checkEnvironmentMeasuredValues(float illuminance, float temperature, float humidity)
+void checkEnvironmentMeasuredValues(int illuminance, int temperature, int humidity)
 {
   if (illuminance < illuminanceLowerBoundary)
     alarm("Illuminance too low!");
@@ -355,12 +355,12 @@ int printEnvironmentIdealValues()
     u8g.setFont(u8g_font_profont15);
     u8g.drawBitmapP(0, 0, 2, 16, illuminanceBitmap);
     u8g.setPrintPos(23, 12);
-    u8g.print(">" + String(illuminanceLowerBoundary) + " Lux");
+    u8g.print("> " + String(illuminanceLowerBoundary) + " Lux");
 
     u8g.drawBitmapP(0, 22, 2, 16, temperatureBitmap);
     u8g.setPrintPos(23, 34);
     u8g.print(String(temperatureLowerBoundary) + "-" + String(temperatureUpperBoundary) + "  C");
-    u8g.drawCircle(110, 26, 2);
+    u8g.drawCircle(65, 26, 2);
 
     u8g.drawBitmapP(0, 43, 2, 16, humidityBitmap);
     u8g.setPrintPos(23, 56);
@@ -448,15 +448,15 @@ void basicWorkMode()
   unsigned long waterDrinkingRestTimeTimer = eyesRestTimeTimer;
   unsigned long exerciseRestTimeTimer = eyesRestTimeTimer;
 
-  float illuminance;
-  float temperature;
-  float humidity;
+  int illuminance;
+  int temperature;
+  int humidity;
 
   while (true)
   {
-    illuminance = lightMeter.readLightLevel();
-    temperature = bme.temp();
-    humidity = bme.hum();
+    illuminance = (int) lightMeter.readLightLevel();
+    temperature = (int) bme.temp();
+    humidity = (int) bme.hum();
     returnState = printEnvironmentMeasuredValues(illuminance, temperature, humidity);
     if (returnState == 1)
       break;

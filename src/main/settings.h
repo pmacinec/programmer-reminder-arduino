@@ -12,11 +12,11 @@ int basicWorkModeScreensChange = 10;
 
 
 // Basic work mode
-float illuminanceLowerBoundary = 400.0;
-float temperatureLowerBoundary = 21.0;
-float temperatureUpperBoundary = 26.0;
-float humidityLowerBoundary = 35.0;
-float humidityUpperBoundary = 60.0;
+int illuminanceLowerBoundary = 400;
+int temperatureLowerBoundary = 21;
+int temperatureUpperBoundary = 26;
+int humidityLowerBoundary = 35;
+int humidityUpperBoundary = 60;
 
 int eyesRestTime = 20 * 60;  // 20 minutes * 60 seconds (20 minutes)
 int eyesRestDelay = 2 * 60;  // 2 minutes * 60 seconds (2 minutes)
